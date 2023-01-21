@@ -1,14 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
-	"strings"
-	"sync"
+	"os"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -16,24 +15,9 @@ import (
 
 var bytesSiz uint64 = 0
 var aGb int = 1003741824
-var daySecnd int = 15280000
-var packetRange int = 0
+var daySeconds int = 8640000
 var UserSizeINPUT int
-
-func hardWork(wg *sync.WaitGroup) {
-	defer wg.Done()
-	fmt.Printf("Start: %v\n", time.Now())
-
-	// Memory
-	a := []string{}
-	for i := 0; i < 500000; i++ {
-		a = append(a, "aaaa")
-	}
-
-	// Blocking
-	time.Sleep(2 * time.Second)
-	fmt.Printf("End: %v\n", time.Now())
-}
+var ipList = "ip.txt"
 
 func randomINT(min int, max int) int {
 	rand.Seed(time.Now().UnixNano())
@@ -41,19 +25,42 @@ func randomINT(min int, max int) int {
 }
 
 func randomIP() string {
-	firstLoc := randomINT(1, 400)
-	candidate1 := ""
-	dat, err := ioutil.ReadFile("ip.txt")
-	if err == nil {
-		ascii := string(dat)
-		splt := strings.Split(ascii, "\n")
-		candidate1 = splt[firstLoc]
+	//randSource := rand.NewSource(time.Now().UnixNano())
+	//randGenerator := rand.New(randSource)
+	//firstLoc := randGenerator.Intn(10)
+	//candidate1 := ""
+	//dat, err := ioutil.ReadFile(ipList)
+	//if err == nil {
+	//	ascii := string(dat)
+	//	splt := strings.Split(ascii, "\n")
+	//	candidate1 = splt[firstLoc]
+	//
+	//}
+	//return candidate1
+	file, err := os.Open(ipList)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return candidate1
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	randsource := rand.NewSource(time.Now().UnixNano())
+	randgenerator := rand.New(randsource)
+
+	lineNum := 1
+	var pick string
+	for scanner.Scan() {
+		line := scanner.Text()
+		roll := randgenerator.Intn(lineNum)
+		if roll == 0 {
+			pick = line
+		}
+		lineNum += 1
+	}
+	return pick
 }
 
 func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, userByteSize int) {
-	randomtmp := randomINT((userByteSize), (userByteSize + 200))
+	randomtmp := randomINT((userByteSize - 400), (userByteSize + 400))
 
 	bytesSUM(randomtmp)
 	buf := make([]byte, randomtmp)
@@ -72,7 +79,7 @@ func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, userByteSize int) {
 
 func bytesSUM(new int) {
 	tmp := uint64(new)
-	bytesSiz = (tmp + bytesSiz)
+	bytesSiz = tmp + bytesSiz
 
 }
 
@@ -81,14 +88,14 @@ func main() {
 	flag.IntVar(&UserSizeINPUT, "size", 2, "number of lines to read from the file")
 	flag.Parse()
 
-	userByteSize := ((UserSizeINPUT * aGb) / daySecnd)
+	userByteSize := (UserSizeINPUT * aGb) / daySeconds
 	fmt.Println(userByteSize)
 
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 1234})
 	if err != nil {
 		log.Fatal("Listen:", err)
 	}
-	for int(bytesSiz) < (UserSizeINPUT * aGb) {
+	for true {
 		sendPacket(conn, &net.UDPAddr{IP: net.ParseIP(randomIP()), Port: 443}, userByteSize)
 		time.Sleep(time.Millisecond * 100)
 	}
