@@ -15,7 +15,7 @@ import (
 
 var bytesSiz uint64 = 0
 var aGb int = 1003741824
-var daySeconds int = 8640000
+var daySeconds int = 4640000
 var UserSizeINPUT int
 var ipList = "ip.txt"
 
@@ -25,18 +25,6 @@ func randomINT(min int, max int) int {
 }
 
 func randomIP() string {
-	//randSource := rand.NewSource(time.Now().UnixNano())
-	//randGenerator := rand.New(randSource)
-	//firstLoc := randGenerator.Intn(10)
-	//candidate1 := ""
-	//dat, err := ioutil.ReadFile(ipList)
-	//if err == nil {
-	//	ascii := string(dat)
-	//	splt := strings.Split(ascii, "\n")
-	//	candidate1 = splt[firstLoc]
-	//
-	//}
-	//return candidate1
 	file, err := os.Open(ipList)
 	if err != nil {
 		log.Fatal(err)
@@ -60,7 +48,7 @@ func randomIP() string {
 }
 
 func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, userByteSize int) {
-	randomtmp := randomINT((userByteSize - 400), (userByteSize + 400))
+	randomtmp := randomINT((userByteSize - 400), (userByteSize + 500))
 
 	bytesSUM(randomtmp)
 	buf := make([]byte, randomtmp)
@@ -85,7 +73,7 @@ func bytesSUM(new int) {
 
 func main() {
 
-	flag.IntVar(&UserSizeINPUT, "size", 2, "number of lines to read from the file")
+	flag.IntVar(&UserSizeINPUT, "size", 2, "Gb")
 	flag.Parse()
 
 	userByteSize := (UserSizeINPUT * aGb) / daySeconds
