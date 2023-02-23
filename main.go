@@ -8,14 +8,13 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
 )
 
 var bytesSiz uint64 = 0
-var aGb int = 1003741824
-var daySeconds int = 4640000
 var UserSizeINPUT int
 var ipList = "ip.txt"
 
@@ -29,16 +28,21 @@ func randomIP() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(file)
 	scanner := bufio.NewScanner(file)
-	randsource := rand.NewSource(time.Now().UnixNano())
-	randgenerator := rand.New(randsource)
+	randSource := rand.NewSource(time.Now().UnixNano())
+	randGenerator := rand.New(randSource)
 
 	lineNum := 1
 	var pick string
 	for scanner.Scan() {
 		line := scanner.Text()
-		roll := randgenerator.Intn(lineNum)
+		roll := randGenerator.Intn(lineNum)
 		if roll == 0 {
 			pick = line
 		}
@@ -47,45 +51,80 @@ func randomIP() string {
 	return pick
 }
 
-func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, userByteSize int) {
-	randomtmp := randomINT((userByteSize - 400), (userByteSize + 500))
-
-	bytesSUM(randomtmp)
-	buf := make([]byte, randomtmp)
-
-	_, err := rand.Read(buf)
-	if err != nil {
-		log.Fatalf("error while generating random string: %s", err)
-	}
-	n, err := conn.WriteTo([]byte(buf), addr)
-	if err != nil {
-		log.Fatal("Write:", err)
-	}
-
-	fmt.Println("Sent   ", n, "   bytes  ->   ", addr, "    ", humanize.Bytes(bytesSiz))
-}
-
 func bytesSUM(new int) {
 	tmp := uint64(new)
 	bytesSiz = tmp + bytesSiz
+}
+
+func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, UserInputSize int, duration time.Duration) {
+	randomPaketSize := randomINT(UserInputSize-1000, UserInputSize+2506)
+
+	bytesSUM(randomPaketSize)
+	buf := make([]byte, randomPaketSize)
+
+	_, err := rand.Read(buf)
+	if err != nil {
+		log.Fatalf("err while generating random string: %s", err)
+	}
+	n, err := conn.WriteTo(buf, addr)
+	if err != nil {
+		log.Fatal("Write:", err)
+	}
+	fmt.Println(duration, "   Sent   ", n, "   bytes  ->   ", addr, "    ", humanize.Bytes(bytesSiz))
+
+}
+
+func send(start time.Time, conn *net.UDPConn) {
+
+	for {
+		duration := time.Since(start)
+		sendPacket(conn, &net.UDPAddr{IP: net.ParseIP(randomIP()), Port: 443}, 63000, duration)
+		time.Sleep(time.Millisecond * 50)
+	}
 
 }
 
 func main() {
-
-	flag.IntVar(&UserSizeINPUT, "size", 2, "Gb")
+	start := time.Now()
+	flag.IntVar(&UserSizeINPUT, "t", 1, "number of lines to read from the file")
 	flag.Parse()
+	fmt.Println(UserSizeINPUT)
+	time.Sleep(time.Millisecond * 1000)
+	var wg sync.WaitGroup
+	wg.Add(UserSizeINPUT)
+	conn, _ := net.ListenUDP("udp", &net.UDPAddr{Port: 1234})
 
-	userByteSize := (UserSizeINPUT * aGb) / daySeconds
-	fmt.Println(userByteSize)
-
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 1234})
-	if err != nil {
-		log.Fatal("Listen:", err)
+	switch UserSizeINPUT {
+	case 1:
+		go func() {
+			send(start, conn)
+		}()
+	case 2:
+		go func() {
+			go send(start, conn)
+			go send(start, conn)
+		}()
+	case 3:
+		go func() {
+			go send(start, conn)
+			go send(start, conn)
+			go send(start, conn)
+		}()
+	case 4:
+		go func() {
+			go send(start, conn)
+			go send(start, conn)
+			go send(start, conn)
+			go send(start, conn)
+		}()
+	case 5:
+		go func() {
+			go send(start, conn)
+			go send(start, conn)
+			go send(start, conn)
+			go send(start, conn)
+			go send(start, conn)
+		}()
 	}
-	for true {
-		sendPacket(conn, &net.UDPAddr{IP: net.ParseIP(randomIP()), Port: 443}, userByteSize)
-		time.Sleep(time.Millisecond * 100)
-	}
-
+	wg.Wait()
 }
